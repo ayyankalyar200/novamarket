@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
@@ -14,7 +14,10 @@ import {
   ShoppingBag,
 } from "lucide-react"
 
-export default function SellerDashboard() {
+// ============================================
+// INNER COMPONENT
+// ============================================
+function SellerDashboardContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
@@ -117,7 +120,6 @@ export default function SellerDashboard() {
         </p>
       </div>
 
-      {/* Tabs */}
       <div className="border-b mb-8">
         <nav className="flex gap-6 overflow-x-auto">
           <Link
@@ -168,8 +170,8 @@ export default function SellerDashboard() {
               </h2>
               <p className="text-gray-600 mb-4">
                 {stripeStatus?.connected
-                  ? "Your Stripe account is connected but onboarding is incomplete. Complete it to start receiving payments."
-                  : "Connect your Stripe account to receive payments directly from buyers. Takes only 2 minutes."}
+                  ? "Your Stripe account is connected but onboarding is incomplete."
+                  : "Connect your Stripe account to receive payments directly from buyers."}
               </p>
               <button
                 onClick={handleConnectStripe}
@@ -260,3 +262,19 @@ export default function SellerDashboard() {
   )
 }
 
+// ============================================
+// MAIN PAGE - wraps in Suspense
+// ============================================
+export default function SellerDashboard() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+        </div>
+      }
+    >
+      <SellerDashboardContent />
+    </Suspense>
+  )
+}

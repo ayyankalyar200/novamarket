@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -19,7 +19,10 @@ import {
   Inbox,
 } from 'lucide-react'
 
-export default function SignupPage() {
+// ============================================
+// INNER COMPONENT
+// ============================================
+function SignupContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const initialRole = searchParams.get('role') === 'seller' ? 'seller' : 'buyer'
@@ -55,7 +58,6 @@ export default function SignupPage() {
       return
     }
 
-    // Show email confirmation screen
     setEmailSent(true)
     setLoading(false)
   }
@@ -86,91 +88,51 @@ export default function SignupPage() {
     }
   }
 
-  // Get email provider
   const getEmailProvider = (email: string) => {
     const domain = email.split('@')[1]?.toLowerCase()
     if (domain === 'gmail.com' || domain === 'googlemail.com') {
-      return {
-        name: 'Gmail',
-        url: 'https://mail.google.com',
-        color: 'bg-red-500 hover:bg-red-600',
-        icon: '📧',
-      }
+      return { name: 'Gmail', url: 'https://mail.google.com', color: 'bg-red-500 hover:bg-red-600', icon: '📧' }
     }
     if (domain === 'outlook.com' || domain === 'hotmail.com' || domain === 'live.com') {
-      return {
-        name: 'Outlook',
-        url: 'https://outlook.live.com',
-        color: 'bg-blue-500 hover:bg-blue-600',
-        icon: '📨',
-      }
+      return { name: 'Outlook', url: 'https://outlook.live.com', color: 'bg-blue-500 hover:bg-blue-600', icon: '📨' }
     }
     if (domain === 'yahoo.com') {
-      return {
-        name: 'Yahoo Mail',
-        url: 'https://mail.yahoo.com',
-        color: 'bg-purple-500 hover:bg-purple-600',
-        icon: '📩',
-      }
+      return { name: 'Yahoo Mail', url: 'https://mail.yahoo.com', color: 'bg-purple-500 hover:bg-purple-600', icon: '📩' }
     }
     if (domain === 'icloud.com' || domain === 'me.com') {
-      return {
-        name: 'iCloud Mail',
-        url: 'https://www.icloud.com/mail',
-        color: 'bg-blue-400 hover:bg-blue-500',
-        icon: '✉️',
-      }
+      return { name: 'iCloud Mail', url: 'https://www.icloud.com/mail', color: 'bg-blue-400 hover:bg-blue-500', icon: '✉️' }
     }
-    return {
-      name: 'Email App',
-      url: `https://${domain}`,
-      color: 'bg-gray-600 hover:bg-gray-700',
-      icon: '📧',
-    }
+    return { name: 'Email App', url: `https://${domain}`, color: 'bg-gray-600 hover:bg-gray-700', icon: '📧' }
   }
 
-  // ============================================
-  // EMAIL SENT SCREEN
-  // ============================================
   if (emailSent) {
     const provider = getEmailProvider(email)
 
     return (
       <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
         <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-lg">
-          {/* Success Icon */}
           <div className="text-center mb-6">
             <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Inbox className="w-10 h-10 text-green-600" />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Check Your Email
-            </h1>
-            <p className="text-gray-600">
-              We've sent a confirmation link to your email address
-            </p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Check Your Email</h1>
+            <p className="text-gray-600">We've sent a confirmation link to your email address</p>
           </div>
 
-          {/* Email Display */}
           <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-4 mb-6">
             <div className="flex items-center gap-3">
               <div className="bg-purple-600 p-2 rounded-lg">
                 <Mail className="w-5 h-5 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-purple-600 font-medium mb-0.5">
-                  Confirmation email sent to
-                </p>
+                <p className="text-xs text-purple-600 font-medium mb-0.5">Confirmation email sent to</p>
                 <p className="font-bold text-gray-900 truncate">{email}</p>
               </div>
             </div>
           </div>
 
-          {/* Instructions */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <p className="text-sm text-blue-800 font-medium mb-2">
-              📬 Next Steps:
-            </p>
+            <p className="text-sm text-blue-800 font-medium mb-2">📬 Next Steps:</p>
             <ol className="text-sm text-blue-700 space-y-1.5 list-decimal list-inside">
               <li>Open your email inbox</li>
               <li>Look for email from <strong>NovaMarket</strong></li>
@@ -179,7 +141,6 @@ export default function SignupPage() {
             </ol>
           </div>
 
-          {/* Open Email Button */}
           <a
             href={provider.url}
             target="_blank"
@@ -191,7 +152,6 @@ export default function SignupPage() {
             <ExternalLink className="w-4 h-4" />
           </a>
 
-          {/* Resend Email */}
           <button
             onClick={handleResendEmail}
             disabled={resending}
@@ -224,19 +184,6 @@ export default function SignupPage() {
             </div>
           )}
 
-          {/* Divider */}
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200"></div>
-            </div>
-            <div className="relative flex justify-center text-xs">
-              <span className="px-3 bg-white text-gray-500">
-                Didn't receive the email?
-              </span>
-            </div>
-          </div>
-
-          {/* Wrong Email */}
           <div className="text-center space-y-2">
             <button
               onClick={() => {
@@ -249,12 +196,8 @@ export default function SignupPage() {
             >
               Wrong email? Try again
             </button>
-            <p className="text-xs text-gray-500">
-              Check your spam folder if you don't see it in inbox
-            </p>
           </div>
 
-          {/* Back to Login */}
           <div className="mt-6 pt-6 border-t text-center">
             <Link
               href="/login"
@@ -269,16 +212,11 @@ export default function SignupPage() {
     )
   }
 
-  // ============================================
-  // SIGNUP FORM
-  // ============================================
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
       <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-purple-600 mb-2">
-            Join NovaMarket
-          </h1>
+          <h1 className="text-3xl font-bold text-purple-600 mb-2">Join NovaMarket</h1>
           <p className="text-gray-500">Create your account in seconds</p>
         </div>
 
@@ -290,9 +228,7 @@ export default function SignupPage() {
                 type="button"
                 onClick={() => setRole('buyer')}
                 className={`p-4 rounded-lg border-2 transition flex flex-col items-center gap-2 ${
-                  role === 'buyer'
-                    ? 'border-purple-600 bg-purple-50 text-purple-600'
-                    : 'border-gray-200 text-gray-600'
+                  role === 'buyer' ? 'border-purple-600 bg-purple-50 text-purple-600' : 'border-gray-200 text-gray-600'
                 }`}
               >
                 <ShoppingBag className="w-6 h-6" />
@@ -302,9 +238,7 @@ export default function SignupPage() {
                 type="button"
                 onClick={() => setRole('seller')}
                 className={`p-4 rounded-lg border-2 transition flex flex-col items-center gap-2 ${
-                  role === 'seller'
-                    ? 'border-purple-600 bg-purple-50 text-purple-600'
-                    : 'border-gray-200 text-gray-600'
+                  role === 'seller' ? 'border-purple-600 bg-purple-50 text-purple-600' : 'border-gray-200 text-gray-600'
                 }`}
               >
                 <Store className="w-6 h-6" />
@@ -313,7 +247,7 @@ export default function SignupPage() {
             </div>
             {role === 'seller' && (
               <p className="text-xs text-gray-500 mt-2 bg-yellow-50 border border-yellow-200 rounded p-2">
-                ⚠️ Seller accounts require admin approval. You'll fill out a form after signup.
+                ⚠️ Seller accounts require admin approval.
               </p>
             )}
           </div>
@@ -389,5 +323,22 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// ============================================
+// MAIN PAGE
+// ============================================
+export default function SignupPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-[80vh] flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+        </div>
+      }
+    >
+      <SignupContent />
+    </Suspense>
   )
 }

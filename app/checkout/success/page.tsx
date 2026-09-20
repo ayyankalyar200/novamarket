@@ -1,11 +1,14 @@
 ﻿'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { CheckCircle, Package, ArrowRight, Loader2 } from 'lucide-react'
 
-export default function CheckoutSuccessPage() {
+// ============================================
+// INNER COMPONENT - uses useSearchParams
+// ============================================
+function CheckoutSuccessContent() {
   const searchParams = useSearchParams()
   const sessionId = searchParams.get('session_id')
   const [confirming, setConfirming] = useState(true)
@@ -48,7 +51,9 @@ export default function CheckoutSuccessPage() {
     return (
       <div className="max-w-2xl mx-auto px-4 py-20 text-center">
         <Loader2 className="w-16 h-16 text-purple-600 mx-auto mb-6 animate-spin" />
-        <h1 className="text-3xl font-bold mb-3 text-gray-900">Confirming Payment...</h1>
+        <h1 className="text-3xl font-bold mb-3 text-gray-900">
+          Confirming Payment...
+        </h1>
         <p className="text-gray-500">Please wait while we confirm your order</p>
       </div>
     )
@@ -58,10 +63,12 @@ export default function CheckoutSuccessPage() {
     return (
       <div className="max-w-2xl mx-auto px-4 py-20 text-center">
         <div className="text-6xl mb-6">⚠️</div>
-        <h1 className="text-3xl font-bold mb-3 text-gray-900">Payment Received</h1>
+        <h1 className="text-3xl font-bold mb-3 text-gray-900">
+          Payment Received
+        </h1>
         <p className="text-gray-500 mb-8">
-          Your payment was successful, but we couldn't confirm the order automatically.
-          Please check your orders page.
+          Your payment was successful, but we couldn't confirm the order
+          automatically. Please check your orders page.
         </p>
         <Link
           href="/orders"
@@ -88,7 +95,9 @@ export default function CheckoutSuccessPage() {
       </p>
 
       <div className="bg-white rounded-lg border p-6 mb-8 text-left">
-        <h2 className="font-bold mb-3 text-gray-900">What happens next?</h2>
+        <h2 className="font-bold mb-3 text-gray-900">
+          What happens next?
+        </h2>
         <ul className="space-y-2 text-sm text-gray-600">
           <li className="flex items-start gap-2">
             <span className="text-purple-600 mt-0.5">1.</span>
@@ -122,5 +131,25 @@ export default function CheckoutSuccessPage() {
         </Link>
       </div>
     </div>
+  )
+}
+
+// ============================================
+// MAIN PAGE - wraps in Suspense
+// ============================================
+export default function CheckoutSuccessPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-2xl mx-auto px-4 py-20 text-center">
+          <Loader2 className="w-16 h-16 text-purple-600 mx-auto mb-6 animate-spin" />
+          <h1 className="text-3xl font-bold mb-3 text-gray-900">
+            Loading...
+          </h1>
+        </div>
+      }
+    >
+      <CheckoutSuccessContent />
+    </Suspense>
   )
 }

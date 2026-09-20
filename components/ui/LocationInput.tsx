@@ -33,7 +33,7 @@ export default function LocationInput({
 
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const debounceRef = useRef<NodeJS.Timeout>()
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -237,3 +237,4 @@ export default function LocationInput({
     </div>
   )
 }
+

@@ -29,6 +29,7 @@ import CountrySelect from '@/components/ui/CountrySelect'
 import PhoneInput from '@/components/ui/PhoneInput'
 import LocationInput from '@/components/ui/LocationInput'
 import { getDefaultCountry, Country } from '@/lib/data/countries'
+import { useRecaptcha } from '@/lib/use-recaptcha'
 
 const CATEGORIES = [
   { value: 'electronics', label: '💻 Electronics & Gadgets' },
@@ -44,6 +45,7 @@ const CATEGORIES = [
 ]
 
 export default function BecomeSellerPage() {
+  const { getToken } = useRecaptcha()
   const router = useRouter()
   const [checking, setChecking] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -109,6 +111,34 @@ export default function BecomeSellerPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+
+    if (!locationValid) {
+      setError('Please select a valid location from the dropdown')
+      return
+    }
+
+    // reCAPTCHA verification
+    const recaptchaToken = await getToken('become_seller')
+    if (recaptchaToken) {
+      try {
+        const verifyRes = await fetch('/api/recaptcha/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: recaptchaToken }),
+        })
+
+        const verifyData = await verifyRes.json()
+
+        if (!verifyRes.ok) {
+          setError(verifyData.error || 'Security verification failed')
+          setSubmitting(false)
+          return
+        }
+      } catch (err: any) {
+        console.error('reCAPTCHA error:', err)
+        // Continue - don't block user if reCAPTCHA fails
+      }
+    }
 
     if (!locationValid) {
       setError('Please select a valid location from the dropdown')
@@ -525,3 +555,4 @@ export default function BecomeSellerPage() {
     </div>
   )
 }
+

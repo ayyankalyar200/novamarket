@@ -67,7 +67,7 @@ export default async function AdminDashboard() {
       value: totalOrders || 0,
       icon: FileText,
       color: "bg-orange-500",
-      href: "/orders",
+      href: "/admin/orders",
     },
   ]
 
@@ -169,3 +169,4 @@ export default async function AdminDashboard() {
     </div>
   )
 }
+

@@ -1,7 +1,7 @@
 ﻿import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { Shield, LayoutDashboard, FileText, Users, Flag, Home } from "lucide-react"
+import { Shield, LayoutDashboard, FileText, Users, Flag, Home, Package } from 'lucide-react'
 
 export default async function AdminLayout({
   children,
@@ -58,7 +58,14 @@ export default async function AdminLayout({
             >
               <Users className="w-5 h-5" />
               Users
+            </Link>            <Link
+              href="/admin/orders"
+              className="flex items-center gap-2 px-6 py-4 border-b-2 border-transparent hover:border-red-600 hover:text-red-600 whitespace-nowrap"
+            >
+              <Package className="w-5 h-5" />
+              Orders
             </Link>
+
             <Link
               href="/admin/reports"
               className="flex items-center gap-2 px-6 py-4 border-b-2 border-transparent hover:border-red-600 hover:text-red-600 whitespace-nowrap"
@@ -82,3 +89,4 @@ export default async function AdminLayout({
     </div>
   )
 }
+

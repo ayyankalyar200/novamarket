@@ -4,10 +4,12 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { useRecaptcha } from '@/lib/use-recaptcha'
 import { Mail, Lock, Loader2 } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
+  const { getToken } = useRecaptcha()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -19,20 +21,42 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    try {
+      // reCAPTCHA verification
+      const recaptchaToken = await getToken('login')
+      
+      // Agar reCAPTCHA configure hai to verify karein
+      if (recaptchaToken) {
+        const verifyRes = await fetch('/api/recaptcha/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: recaptchaToken }),
+        })
 
-    if (error) {
-      setError(error.message)
+        const verifyData = await verifyRes.json()
+
+        if (!verifyRes.ok) {
+          throw new Error(
+            verifyData.error || 'Security verification failed'
+          )
+        }
+      }
+
+      // Login
+      const supabase = createClient()
+      const { error: loginError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (loginError) throw loginError
+
+      router.push('/')
+      router.refresh()
+    } catch (err: any) {
+      setError(err.message)
       setLoading(false)
-      return
     }
-
-    router.push('/')
-    router.refresh()
   }
 
   const handleGoogleLogin = async () => {

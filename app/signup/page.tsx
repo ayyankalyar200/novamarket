@@ -4,6 +4,7 @@ import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { useRecaptcha } from '@/lib/use-recaptcha'
 import {
   Mail,
   Lock,
@@ -23,6 +24,7 @@ import {
 // INNER COMPONENT
 // ============================================
 function SignupContent() {
+  const { getToken } = useRecaptcha()
   const router = useRouter()
   const searchParams = useSearchParams()
   const initialRole = searchParams.get('role') === 'seller' ? 'seller' : 'buyer'
@@ -41,6 +43,14 @@ function SignupContent() {
     e.preventDefault()
     setLoading(true)
     setError('')
+
+    // reCAPTCHA verification
+    const recaptchaToken = await getToken('signup')
+    if (!recaptchaToken) {
+      setError('Security verification failed. Please try again.')
+      setLoading(false)
+      return
+    }
 
     const supabase = createClient()
     const { error: signupError } = await supabase.auth.signUp({
@@ -342,3 +352,4 @@ export default function SignupPage() {
     </Suspense>
   )
 }
+

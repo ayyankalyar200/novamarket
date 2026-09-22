@@ -29,6 +29,7 @@ export default async function Home() {
     .from('products')
     .select('*, profiles(username)')
     .eq('status', 'active')
+    .eq('is_hidden', false)
     .limit(8)
 
   return (
@@ -215,3 +216,4 @@ export default async function Home() {
     </div>
   )
 }
+

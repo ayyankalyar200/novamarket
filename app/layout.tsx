@@ -3,8 +3,10 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import AIAssistant from '@/components/AIAssistant'
 import { CartProvider } from '@/lib/cart-context'
 import RecaptchaProvider from '@/components/RecaptchaProvider'
+import { ThemeProvider } from '@/lib/theme-context'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -19,15 +21,18 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={`${inter.className} bg-gray-50 min-h-screen flex flex-col`}>
-        <RecaptchaProvider>
-          <CartProvider>
-            <Header />
-            <main className="flex-1">{children}</main>
-            <Footer />
-          </CartProvider>
-        </RecaptchaProvider>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.className} bg-gray-50 dark:bg-slate-900 min-h-screen flex flex-col`}>
+        <ThemeProvider>
+          <RecaptchaProvider>
+            <CartProvider>
+              <Header />
+              <main className="flex-1">{children}</main>
+              <Footer />
+              <AIAssistant />
+            </CartProvider>
+          </RecaptchaProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

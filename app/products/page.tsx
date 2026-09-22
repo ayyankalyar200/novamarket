@@ -1,4 +1,4 @@
-import Link from 'next/link'
+﻿import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 
 export default async function ProductsPage({
@@ -13,6 +13,7 @@ export default async function ProductsPage({
     .from('products')
     .select('*, profiles(username), categories(name, slug, icon)')
     .eq('status', 'active')
+    .eq('is_hidden', false)
     .order('created_at', { ascending: false })
 
   if (params.category) {
@@ -104,7 +105,7 @@ export default async function ProductsPage({
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-300 text-4xl">
-                        📦
+                        ðŸ“¦
                       </div>
                     )}
                   </div>
@@ -122,7 +123,7 @@ export default async function ProductsPage({
             </div>
           ) : (
             <div className="text-center py-16 bg-white rounded-lg border-2 border-dashed">
-              <div className="text-6xl mb-4">🔍</div>
+              <div className="text-6xl mb-4">ðŸ”</div>
               <p className="text-gray-500 text-lg mb-4">No products found</p>
               <Link
                 href="/sell"

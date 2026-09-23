@@ -28,7 +28,7 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold mb-4">Sell</h4>
             <ul className="space-y-2 text-sm text-gray-400">
-              <li><Link href="/sell" className="hover:text-purple-400">Start Selling</Link></li>
+              <li><Link href="/seller-signup" className="hover:text-purple-400">Start Selling</Link></li>
               <li><Link href="/dashboard/seller" className="hover:text-purple-400">Seller Dashboard</Link></li>
               <li><Link href="/dashboard/seller" className="hover:text-purple-400">Seller Dashboard</Link></li>
               <li><Link href="/pricing" className="hover:text-purple-400">Pricing</Link></li>
@@ -54,3 +54,4 @@ export default function Footer() {
     </footer>
   )
 }
+

@@ -2,21 +2,30 @@
 import Groq from 'groq-sdk'
 
 // ============================================
-// API KEY MANAGEMENT
+// CONFIG
 // ============================================
-
 type Provider = 'gemini' | 'groq'
+type Language = 'en' | 'ur' | 'auto'
 
 type AIProvider = {
   provider: Provider
-  client: any
   keyIndex: number
+  key: string
 }
 
-// Collect all available keys
+// Detect language from message
+function detectLanguage(text: string): 'en' | 'ur' {
+  const urduRegex = /[\u0600-\u06FF]/
+  return urduRegex.test(text) ? 'ur' : 'en'
+}
+
+// ============================================
+// API KEY MANAGEMENT (4 APIs each)
+// ============================================
+
 function getGeminiKeys(): string[] {
   const keys: string[] = []
-  for (let i = 1; i <= 5; i++) {
+  for (let i = 1; i <= 4; i++) {
     const key = process.env[`GEMINI_API_KEY_${i}`]
     if (key && key.trim()) keys.push(key.trim())
   }
@@ -25,33 +34,37 @@ function getGeminiKeys(): string[] {
 
 function getGroqKeys(): string[] {
   const keys: string[] = []
-  for (let i = 1; i <= 5; i++) {
+  for (let i = 1; i <= 4; i++) {
     const key = process.env[`GROQ_API_KEY_${i}`]
     if (key && key.trim()) keys.push(key.trim())
   }
   return keys
 }
 
-// Current key rotation indexes
+// Rotation indexes
 let geminiKeyIndex = 0
 let groqKeyIndex = 0
 
 // ============================================
-// GENERATE TEXT WITH FALLBACK
+// CORE: GENERATE TEXT WITH 4-API ROTATION
 // ============================================
 
 export async function generateAIText(
   prompt: string,
-  options?: { maxTokens?: number; temperature?: number }
-): Promise<{ text: string; provider: Provider }> {
+  options?: {
+    maxTokens?: number
+    temperature?: number
+    systemPrompt?: string
+  }
+): Promise<{ text: string; provider: Provider; keyUsed: number }> {
   const geminiKeys = getGeminiKeys()
   const groqKeys = getGroqKeys()
 
   const errors: string[] = []
 
-  // ============================================
-  // TRY GEMINI FIRST
-  // ============================================
+  // ==========================================
+  // TRY ALL GEMINI KEYS (rotation)
+  // ==========================================
   for (let i = 0; i < geminiKeys.length; i++) {
     const idx = (geminiKeyIndex + i) % geminiKeys.length
     const key = geminiKeys[idx]
@@ -59,30 +72,33 @@ export async function generateAIText(
     try {
       const genAI = new GoogleGenerativeAI(key)
       const model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash-latest',
+        model: 'gemini-3.5-flash',
         generationConfig: {
-          maxOutputTokens: options?.maxTokens || 1000,
+          maxOutputTokens: options?.maxTokens || 1500,
           temperature: options?.temperature || 0.7,
         },
       })
 
-      const result = await model.generateContent(prompt)
+      const fullPrompt = options?.systemPrompt
+        ? `${options.systemPrompt}\n\n${prompt}`
+        : prompt
+
+      const result = await model.generateContent(fullPrompt)
       const text = result.response.text()
 
-      // Success - update index for next call
+      // Success — rotate to next key for next request
       geminiKeyIndex = (idx + 1) % geminiKeys.length
 
-      return { text, provider: 'gemini' }
+      return { text, provider: 'gemini', keyUsed: idx + 1 }
     } catch (err: any) {
-      errors.push(`Gemini key ${idx + 1}: ${err.message}`)
-      console.warn(`Gemini key ${idx + 1} failed:`, err.message)
-      // Try next key
+      errors.push(`Gemini #${idx + 1}: ${err.message?.slice(0, 100)}`)
+      console.warn(`Gemini key ${idx + 1} failed, trying next...`)
     }
   }
 
-  // ============================================
-  // FALLBACK TO GROQ
-  // ============================================
+  // ==========================================
+  // FALLBACK: TRY ALL GROQ KEYS
+  // ==========================================
   for (let i = 0; i < groqKeys.length; i++) {
     const idx = (groqKeyIndex + i) % groqKeys.length
     const key = groqKeys[idx]
@@ -90,72 +106,235 @@ export async function generateAIText(
     try {
       const groq = new Groq({ apiKey: key })
 
+      const messages: any[] = []
+      
+      if (options?.systemPrompt) {
+        messages.push({ role: 'system', content: options.systemPrompt })
+      }
+      
+      messages.push({ role: 'user', content: prompt })
+
       const completion = await groq.chat.completions.create({
-        messages: [{ role: 'user', content: prompt }],
-        model: 'llama-3.1-8b-instant',
-        max_tokens: options?.maxTokens || 1000,
+        messages,
+        model: 'openai/gpt-oss-20b',
+        max_tokens: options?.maxTokens || 1500,
         temperature: options?.temperature || 0.7,
       })
 
       const text = completion.choices[0]?.message?.content || ''
 
-      // Success - update index
       groqKeyIndex = (idx + 1) % groqKeys.length
 
-      return { text, provider: 'groq' }
+      return { text, provider: 'groq', keyUsed: idx + 1 }
     } catch (err: any) {
-      errors.push(`Groq key ${idx + 1}: ${err.message}`)
-      console.warn(`Groq key ${idx + 1} failed:`, err.message)
+      errors.push(`Groq #${idx + 1}: ${err.message?.slice(0, 100)}`)
+      console.warn(`Groq key ${idx + 1} failed, trying next...`)
     }
   }
 
-  // All providers failed
   throw new Error(
-    `All AI providers failed:\n${errors.join('\n')}`
+    `All AI providers exhausted:\n${errors.join('\n')}`
   )
 }
 
 // ============================================
-// CHECK IF AI IS AVAILABLE
+// CHECK AI AVAILABILITY
 // ============================================
 
 export function isAIAvailable(): boolean {
   return getGeminiKeys().length > 0 || getGroqKeys().length > 0
 }
 
+export function getAIStats() {
+  return {
+    geminiKeys: getGeminiKeys().length,
+    groqKeys: getGroqKeys().length,
+    totalAPIs: getGeminiKeys().length + getGroqKeys().length,
+  }
+}
+
 // ============================================
-// USAGE EXAMPLES
+// 🛍️ BUYER AI ASSISTANT
+// ============================================
+
+export async function buyerAIAssistant(
+  message: string,
+  products: any[],
+  conversationHistory: { role: 'user' | 'assistant'; content: string }[] = []
+): Promise<{ text: string; provider: Provider }> {
+  const language = detectLanguage(message)
+  
+  const productContext = products
+    .slice(0, 20)
+    .map((p: any) => `• ${p.title} - $${p.price} (${p.stock || 0} in stock)`)
+    .join('\n')
+
+  const historyContext = conversationHistory.length > 0
+    ? `\nPrevious conversation:\n${conversationHistory.map((h) => `${h.role}: ${h.content}`).join('\n')}`
+    : ''
+
+  const systemPrompt = language === 'ur'
+    ? `Aap NovaMarket ke AI Shopping Assistant hain. Aap users ki madad karte hain:
+- Products dhundhne mein
+- Best options suggest karne mein
+- Price comparison mein
+- Product recommendations mein
+
+Aap bilkul friendly aur helpful hain. User ke sawal ka jawab URDU mein dein.
+
+Available products:
+${productContext}
+
+Ahmiyat ki baatein:
+- Concise jawab dein (2-3 sentences)
+- Kabhi kabhi product names mention karein
+- Agar user English mein baat kare to English mein jawab dein`
+    : `You are NovaMarket's AI Shopping Assistant. You help users:
+- Find products
+- Suggest best options
+- Compare prices
+- Recommend products
+
+You are friendly and helpful. Match the user's language (English or Urdu).
+
+Available products:
+${productContext}
+
+Important:
+- Be concise (2-3 sentences)
+- Sometimes mention product names
+- Match user's language`
+
+  const fullPrompt = `User message: "${message}"${historyContext}
+
+Respond helpfully in the same language as the user.`
+
+  const { text, provider } = await generateAIText(fullPrompt, {
+    systemPrompt,
+    maxTokens: 500,
+    temperature: 0.8,
+  })
+
+  return { text: text.trim(), provider }
+}
+
+// ============================================
+// 🏪 SELLER AI ASSISTANT
+// ============================================
+
+export async function sellerAIAssistant(
+  message: string,
+  sellerContext?: {
+    storeName?: string
+    totalProducts?: number
+    totalRevenue?: number
+    totalOrders?: number
+  }
+): Promise<{ text: string; provider: Provider }> {
+  const language = detectLanguage(message)
+
+  const contextInfo = sellerContext
+    ? `
+Store info:
+- Name: ${sellerContext.storeName || 'Your Store'}
+- Products: ${sellerContext.totalProducts || 0}
+- Revenue: $${sellerContext.totalRevenue?.toFixed(2) || '0.00'}
+- Orders: ${sellerContext.totalOrders || 0}
+`
+    : ''
+
+  const systemPrompt = language === 'ur'
+    ? `Aap NovaMarket ke Seller AI Assistant hain. Aap sellers ki madad karte hain:
+- Product listings likhne mein
+- Pricing strategies mein
+- Sales analytics samajhne mein
+- Customer service improve karne mein
+
+${contextInfo}
+
+Aap business-minded aur helpful hain. User ke sawal ka jawab URDU mein dein.
+
+Important:
+- Practical advice dein
+- 2-4 sentences
+- Actionable steps suggest karein`
+    : `You are NovaMarket's Seller AI Assistant. You help sellers with:
+- Writing product listings
+- Pricing strategies
+- Understanding sales analytics
+- Improving customer service
+
+${contextInfo}
+
+You are business-minded and helpful. Match user's language.
+
+Important:
+- Give practical advice
+- 2-4 sentences
+- Suggest actionable steps`
+
+  const fullPrompt = `Seller question: "${message}"
+
+Provide helpful business advice in the same language.`
+
+  const { text, provider } = await generateAIText(fullPrompt, {
+    systemPrompt,
+    maxTokens: 600,
+    temperature: 0.7,
+  })
+
+  return { text: text.trim(), provider }
+}
+
+// ============================================
+// 📝 PRODUCT DESCRIPTION GENERATOR
 // ============================================
 
 export async function generateProductDescription(
   productTitle: string,
   category?: string,
-  keywords?: string
+  keywords?: string,
+  language: 'en' | 'ur' = 'en'
 ): Promise<string> {
-  const prompt = `Write a compelling, professional product description for an e-commerce marketplace.
+  const prompt = language === 'ur'
+    ? `Is product ka compelling description likhein:
 
-Product Title: ${productTitle}
+Product: ${productTitle}
+${category ? `Category: ${category}` : ''}
+${keywords ? `Features: ${keywords}` : ''}
+
+Requirements:
+- 100-150 words
+- URDU mein likhein
+- Professional aur engaging
+- Key benefits highlight karein
+- No emojis, no markdown
+- Sirf description likhein`
+    : `Write a compelling product description:
+
+Product: ${productTitle}
 ${category ? `Category: ${category}` : ''}
 ${keywords ? `Key Features: ${keywords}` : ''}
 
 Requirements:
-- 100-200 words
-- Engaging and persuasive
+- 100-150 words
+- Professional and engaging
 - Highlight key benefits
-- Natural, conversational tone
-- No emojis
-- No markdown formatting
-- Just plain text
-
-Write ONLY the description, nothing else.`
+- Natural tone
+- No emojis, no markdown
+- Write ONLY the description`
 
   const { text } = await generateAIText(prompt, {
-    maxTokens: 500,
+    maxTokens: 400,
     temperature: 0.7,
   })
 
   return text.trim()
 }
+
+// ============================================
+// 🔍 AI PRODUCT SEARCH
+// ============================================
 
 export async function aiSearch(
   query: string,
@@ -165,22 +344,19 @@ export async function aiSearch(
 
   const productList = products
     .slice(0, 30)
-    .map((p, i) => `${i + 1}. ${p.title} - $${p.price} - ${p.description?.slice(0, 100) || 'No description'}`)
+    .map((p, i) => `${i + 1}. ${p.title} - $${p.price}`)
     .join('\n')
 
-  const prompt = `You are an AI shopping assistant for an e-commerce marketplace.
-
-User query: "${query}"
+  const prompt = `User is searching for: "${query}"
 
 Available products:
 ${productList}
 
-Based on the user's query, identify the BEST matching products.
-Return ONLY a JSON array of product numbers (1-based indexes) in order of relevance.
+Return ONLY a JSON array of product numbers (1-based) in order of relevance.
 Example: [3, 7, 1]
-Return at least 1, at most 8 products. If nothing matches well, return the closest alternatives.
+Return 1-8 products. If nothing matches, return closest alternatives.
 
-Return ONLY the JSON array, nothing else.`
+Return ONLY the JSON array:`
 
   try {
     const { text } = await generateAIText(prompt, {
@@ -188,7 +364,6 @@ Return ONLY the JSON array, nothing else.`
       temperature: 0.3,
     })
 
-    // Parse JSON array from text
     const match = text.match(/\[[\d,\s]+\]/)
     if (!match) return products.slice(0, 8)
 
@@ -203,3 +378,7 @@ Return ONLY the JSON array, nothing else.`
     return products.slice(0, 8)
   }
 }
+
+
+
+

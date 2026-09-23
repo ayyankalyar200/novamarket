@@ -246,7 +246,7 @@ function SignupContent() {
               </button>
               <button
                 type="button"
-                onClick={() => setRole('seller')}
+                onClick={() => router.push('/seller-signup')}
                 className={`p-4 rounded-lg border-2 transition flex flex-col items-center gap-2 ${
                   role === 'seller' ? 'border-purple-600 bg-purple-50 text-purple-600' : 'border-gray-200 text-gray-600'
                 }`}
@@ -352,4 +352,5 @@ export default function SignupPage() {
     </Suspense>
   )
 }
+
 

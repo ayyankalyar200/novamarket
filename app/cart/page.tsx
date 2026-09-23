@@ -4,10 +4,13 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { useCart } from '@/lib/cart-context'
 import { Trash2, ShoppingBag, ArrowRight, Loader2 } from 'lucide-react'
+import CouponInput from '@/components/coupons/CouponInput'
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, totalPrice, totalItems } = useCart()
   const [checkingOut, setCheckingOut] = useState(false)
+  const [coupon, setCoupon] = useState<any>(null)
+  const [discount, setDiscount] = useState(0)
   const [error, setError] = useState('')
 
   const handleCheckout = async () => {
@@ -143,7 +146,7 @@ export default function CartPage() {
             <div className="space-y-3 mb-4 pb-4 border-b">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Subtotal</span>
-                <span className="font-medium">${totalPrice.toFixed(2)}</span>
+                <span className="font-medium">$${(totalPrice - discount).toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Shipping</span>
@@ -155,10 +158,33 @@ export default function CartPage() {
               </div>
             </div>
 
+            {/* Coupon */}
+            <div className="mb-4 pb-4 border-b">
+              <CouponInput
+                subtotal={totalPrice}
+                appliedCoupon={coupon}
+                onApply={(c, d) => {
+                  setCoupon(c)
+                  setDiscount(d)
+                }}
+                onRemove={() => {
+                  setCoupon(null)
+                  setDiscount(0)
+                }}
+              />
+            </div>
+
+            {discount > 0 && (
+              <div className="flex justify-between mb-2 text-green-600">
+                <span className="text-sm">Discount ({coupon?.code})</span>
+                <span className="font-medium">-${discount.toFixed(2)}</span>
+              </div>
+            )}
+
             <div className="flex justify-between mb-6">
               <span className="font-bold text-lg">Total</span>
               <span className="font-bold text-2xl text-purple-600">
-                ${totalPrice.toFixed(2)}
+                $${(totalPrice - discount).toFixed(2)}
               </span>
             </div>
 
@@ -198,3 +224,4 @@ export default function CartPage() {
     </div>
   )
 }
+

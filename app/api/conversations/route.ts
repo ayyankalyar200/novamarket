@@ -1,39 +1,39 @@
-﻿import { NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+﻿import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-    if (!user) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
     const { seller_id, product_id } = await request.json()
 
     if (!seller_id) {
-      return NextResponse.json({ error: "Seller required" }, { status: 400 })
+      return NextResponse.json({ error: 'Seller required' }, { status: 400 })
     }
 
     if (seller_id === user.id) {
       return NextResponse.json(
-        { error: "Cannot message yourself" },
+        { error: 'Cannot message yourself' },
         { status: 400 }
       )
     }
 
-    // Check if conversation exists
+    // Check for existing conversation
     let query = supabase
-      .from("conversations")
-      .select("id")
-      .eq("buyer_id", user.id)
-      .eq("seller_id", seller_id)
+      .from('conversations')
+      .select('id')
+      .eq('buyer_id', user.id)
+      .eq('seller_id', seller_id)
 
     if (product_id) {
-      query = query.eq("product_id", product_id)
+      query = query.eq('product_id', product_id)
     } else {
-      query = query.is("product_id", null)
+      query = query.is('product_id', null)
     }
 
     const { data: existing } = await query.maybeSingle()
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
 
     // Create new conversation
     const { data: conversation, error } = await supabase
-      .from("conversations")
+      .from('conversations')
       .insert({
         buyer_id: user.id,
         seller_id,
@@ -53,11 +53,20 @@ export async function POST(request: Request) {
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      console.error('Conversation create error:', error)
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({ conversation_id: conversation.id })
   } catch (error: any) {
-    console.error("Conversation error:", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('Conversation error:', error)
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500 }
+    )
   }
 }

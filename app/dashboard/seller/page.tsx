@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
+import SellerAIAssistant from '@/components/SellerAIAssistant'
 import {
   Loader2,
   CheckCircle,
@@ -139,6 +140,12 @@ function SellerDashboardContent() {
             className="pb-3 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap"
           >
             Orders
+          </Link>
+          <Link
+            href="/dashboard/seller/coupons"
+            className="pb-3 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap"
+          >
+            🎟️ Coupons
           </Link>
           <Link
             href="/dashboard/seller/products"
@@ -278,3 +285,6 @@ export default function SellerDashboard() {
     </Suspense>
   )
 }
+
+
+

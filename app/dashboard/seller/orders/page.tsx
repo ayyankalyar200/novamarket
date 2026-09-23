@@ -204,11 +204,11 @@ export default async function SellerOrdersPage() {
               {/* Footer */}
               <div className="flex items-center justify-between border-t pt-3">
                 <span className="text-sm text-gray-500">
-                  {item.itemCount} item{item.itemCount !== 1 ? "s" : ""} • Your earnings:{" "}
+                  {item.itemCount} item{item.itemCount !== 1 ? "s" : ""} • You earn:{" "}
                   <span className="font-bold text-purple-600">
-                    ${(item.subtotal * 0.95).toFixed(2)}
+                    ${item.subtotal.toFixed(2)}
                   </span>
-                  <span className="text-xs text-gray-400 ml-2">(after 5% commission)</span>
+                  
                 </span>
                 <Link
                   href={`/orders/${item.order.id}`}
@@ -237,4 +237,5 @@ export default async function SellerOrdersPage() {
     </div>
   )
 }
+
 

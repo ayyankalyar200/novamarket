@@ -327,7 +327,7 @@ export default function SellerSignupPage() {
                 className="mt-1"
               />
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                I agree to NovaMarket's Seller Terms
+                I agree to NovaMarket's Seller Terms (FREE during founding phase — no commission)
               </span>
             </label>
 
@@ -351,3 +351,4 @@ export default function SellerSignupPage() {
     </div>
   )
 }
+

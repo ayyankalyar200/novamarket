@@ -33,7 +33,7 @@ export default function WishlistButton({
           .select('id')
           .eq('user_id', user.id)
           .eq('product_id', productId)
-          .single()
+          .maybeSingle()
         setInWishlist(!!data)
       }
     }
@@ -110,3 +110,4 @@ export default function WishlistButton({
     </button>
   )
 }
+

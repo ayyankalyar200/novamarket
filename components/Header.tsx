@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import UserMenu from './UserMenu'
 import ThemeToggle from './ThemeToggle'
+import NotificationBell from './notifications/NotificationBell'
 import { useCart } from '@/lib/cart-context'
 import { createClient } from '@/lib/supabase/client'
 
@@ -119,6 +120,7 @@ export default function Header() {
             )}
 
             {/* THEME TOGGLE - ALWAYS VISIBLE */}
+            <NotificationBell />
             <ThemeToggle />
 
             {/* Cart */}
@@ -173,5 +175,6 @@ export default function Header() {
     </header>
   )
 }
+
 
 

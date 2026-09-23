@@ -84,10 +84,14 @@ export default function BecomeSellerPage() {
         .eq('id', user.id)
         .single()
 
+      // Block already-sellers/admins
       if (profile?.role === 'seller' || profile?.role === 'admin') {
         router.push('/dashboard/seller')
         return
       }
+
+      // Allow ANYONE else (buyers, new users) to apply as seller
+      // Remove buyer-only requirement
 
       const { data: existing } = await supabase
         .from('seller_requests')
@@ -555,4 +559,5 @@ export default function BecomeSellerPage() {
     </div>
   )
 }
+
 

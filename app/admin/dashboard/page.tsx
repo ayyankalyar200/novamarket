@@ -38,7 +38,7 @@ export default async function AdminDashboard() {
     ?.filter((o: any) => o.status === "paid" || o.status === "shipped" || o.status === "delivered")
     .reduce((sum: number, o: any) => sum + o.total, 0) || 0
 
-  const platformRevenue = totalRevenue * 0.05 // 5% commission
+  const platformRevenue = totalRevenue // 5% commission
 
   const stats = [
     {
@@ -100,7 +100,7 @@ export default async function AdminDashboard() {
       <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-6 text-white">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <p className="text-sm opacity-90 mb-1">Platform Revenue (5% commission)</p>
+            <p className="text-sm opacity-90 mb-1">Total Marketplace Sales</p>
             <p className="text-4xl font-bold">${platformRevenue.toFixed(2)}</p>
             <p className="text-sm opacity-75 mt-1">From ${totalRevenue.toFixed(2)} total sales</p>
           </div>
@@ -169,4 +169,5 @@ export default async function AdminDashboard() {
     </div>
   )
 }
+
 

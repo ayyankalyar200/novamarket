@@ -150,13 +150,8 @@ export default async function AdminOrderDetailPage({
             ${(order.total * 0.05).toFixed(2)}
           </span>
         </div>
-        <div className="flex justify-between items-center text-sm mt-2">
-          <span className="text-gray-500">Seller Receives</span>
-          <span className="font-medium">
-            ${(order.total * 0.95).toFixed(2)}
-          </span>
-        </div>
       </div>
     </div>
   )
 }
+

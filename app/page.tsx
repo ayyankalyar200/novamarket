@@ -1,6 +1,8 @@
 ﻿import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { TrendingUp, Zap, Shield, Truck, Store } from 'lucide-react'
+import LiveStats from '@/components/LiveStats'
+import TrustBadges from '@/components/TrustBadges'
 
 export default async function Home() {
   const supabase = await createClient()
@@ -14,23 +16,42 @@ export default async function Home() {
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
     userRole = profile?.role || 'buyer'
   }
 
   const canSell = userRole === 'seller' || userRole === 'admin'
 
+  // Categories
   const { data: categories } = await supabase
     .from('categories')
     .select('*')
     .order('id')
 
-  const { data: products } = await supabase
+  // Products (only IDs and basic fields)
+  const { data: productsRaw, error: productsError } = await supabase
     .from('products')
-    .select('*, profiles(username)')
+    .select('id, title, price, images, seller_id, stock, status, is_hidden')
     .eq('status', 'active')
     .eq('is_hidden', false)
+    .order('created_at', { ascending: false })
     .limit(8)
+
+  if (productsError) {
+    console.error('Products fetch error:', productsError)
+  }
+
+  // Get sellers separately
+  const sellerIds = [...new Set(productsRaw?.map((p: any) => p.seller_id).filter(Boolean) || [])]
+  const { data: sellers } = sellerIds.length > 0
+    ? await supabase.from('profiles').select('id, username').in('id', sellerIds)
+    : { data: [] }
+
+  // Merge
+  const products = productsRaw?.map((p: any) => ({
+    ...p,
+    profiles: sellers?.find((s: any) => s.id === p.seller_id) || null,
+  })) || []
 
   return (
     <div>
@@ -52,10 +73,9 @@ export default async function Home() {
                 Start Shopping
               </Link>
               
-              {/* Start Selling - sirf sellers/admins ya logged-out users ke liye */}
               {(userRole === 'guest' || canSell) && (
                 <Link
-                  href={canSell ? '/sell' : '/signup?role=seller'}
+                  href={canSell ? '/sell' : '/seller-signup'}
                   className="bg-purple-800 bg-opacity-50 border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-purple-800 transition"
                 >
                   Start Selling
@@ -66,46 +86,14 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Trust Badges */}
-      <section className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            <div className="flex items-center justify-center gap-3">
-              <Truck className="w-8 h-8 text-purple-600" />
-              <div className="text-left">
-                <p className="font-semibold text-sm">Fast Delivery</p>
-                <p className="text-xs text-gray-500">Worldwide shipping</p>
-              </div>
-            </div>
-            <div className="flex items-center justify-center gap-3">
-              <Shield className="w-8 h-8 text-purple-600" />
-              <div className="text-left">
-                <p className="font-semibold text-sm">Buyer Protection</p>
-                <p className="text-xs text-gray-500">100% money back</p>
-              </div>
-            </div>
-            <div className="flex items-center justify-center gap-3">
-              <Zap className="w-8 h-8 text-purple-600" />
-              <div className="text-left">
-                <p className="font-semibold text-sm">Secure Payments</p>
-                <p className="text-xs text-gray-500">Encrypted checkout</p>
-              </div>
-            </div>
-            <div className="flex items-center justify-center gap-3">
-              <TrendingUp className="w-8 h-8 text-purple-600" />
-              <div className="text-left">
-                <p className="font-semibold text-sm">AI-Powered</p>
-                <p className="text-xs text-gray-500">Smart search</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <LiveStats />
+      <TrustBadges />
+      
 
       {/* Categories */}
       <section className="max-w-7xl mx-auto px-4 py-12">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl md:text-3xl font-bold">Shop by Category</h2>
+          <h2 className="text-2xl md:text-3xl font-bold dark:text-white">Shop by Category</h2>
           <Link href="/products" className="text-purple-600 hover:underline text-sm font-medium">
             View all →
           </Link>
@@ -115,10 +103,10 @@ export default async function Home() {
             <Link
               key={cat.id}
               href={`/products?category=${cat.slug}`}
-              className="bg-white p-6 rounded-lg shadow-sm hover:shadow-lg transition text-center border border-gray-100"
+              className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm hover:shadow-lg transition text-center border border-gray-100 dark:border-slate-700"
             >
               <div className="text-4xl mb-2">{cat.icon}</div>
-              <p className="font-medium text-sm">{cat.name}</p>
+              <p className="font-medium text-sm dark:text-white">{cat.name}</p>
             </Link>
           ))}
         </div>
@@ -127,7 +115,7 @@ export default async function Home() {
       {/* Featured Products */}
       <section className="max-w-7xl mx-auto px-4 pb-12">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl md:text-3xl font-bold">Featured Products</h2>
+          <h2 className="text-2xl md:text-3xl font-bold dark:text-white">Featured Products</h2>
           <Link href="/products" className="text-purple-600 hover:underline text-sm font-medium">
             View all →
           </Link>
@@ -139,9 +127,9 @@ export default async function Home() {
               <Link
                 key={p.id}
                 href={`/product/${p.id}`}
-                className="bg-white rounded-lg shadow-sm hover:shadow-lg transition overflow-hidden border border-gray-100 group"
+                className="bg-white dark:bg-slate-800 rounded-lg shadow-sm hover:shadow-lg transition overflow-hidden border border-gray-100 dark:border-slate-700 group"
               >
-                <div className="aspect-square bg-gray-100 overflow-hidden">
+                <div className="aspect-square bg-gray-100 dark:bg-slate-700 overflow-hidden">
                   {p.images?.[0] ? (
                     <img
                       src={p.images[0]}
@@ -155,13 +143,13 @@ export default async function Home() {
                   )}
                 </div>
                 <div className="p-3">
-                  <h3 className="font-medium text-sm line-clamp-2 mb-2 min-h-[2.5rem]">
+                  <h3 className="font-medium text-sm line-clamp-2 mb-2 min-h-[2.5rem] dark:text-white">
                     {p.title}
                   </h3>
                   <p className="text-purple-600 font-bold text-lg">
                     ${p.price}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     by {p.profiles?.username || 'Seller'}
                   </p>
                 </div>
@@ -169,14 +157,14 @@ export default async function Home() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-16 bg-white rounded-lg border-2 border-dashed border-gray-200">
+          <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-lg border-2 border-dashed border-gray-200 dark:border-slate-700">
             <div className="text-6xl mb-4">🛍️</div>
-            <p className="text-gray-500 text-lg mb-4">
+            <p className="text-gray-500 dark:text-gray-400 text-lg mb-4">
               No products yet. Be the first seller!
             </p>
             {userRole === 'guest' ? (
               <Link
-                href="/signup?role=seller"
+                href="/seller-signup"
                 className="inline-block bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700"
               >
                 Start Selling
@@ -193,7 +181,7 @@ export default async function Home() {
         )}
       </section>
 
-      {/* CTA Section - sirf guests aur sellers */}
+      {/* CTA Section */}
       {(userRole === 'guest' || canSell) && (
         <section className="bg-purple-600 text-white py-16 mt-8">
           <div className="max-w-4xl mx-auto px-4 text-center">
@@ -205,7 +193,7 @@ export default async function Home() {
               Join thousands of sellers on NovaMarket and reach millions of buyers worldwide.
             </p>
             <Link
-              href={canSell ? '/sell' : '/signup?role=seller'}
+              href={canSell ? '/sell' : '/seller-signup'}
               className="inline-block bg-white text-purple-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition"
             >
               Become a Seller
@@ -216,4 +204,6 @@ export default async function Home() {
     </div>
   )
 }
+
+
 

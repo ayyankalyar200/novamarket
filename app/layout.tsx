@@ -4,6 +4,9 @@ import './globals.css'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import AIAssistant from '@/components/AIAssistant'
+import ActivityTracker from '@/components/ActivityTracker'
+import SellerAIAssistant from '@/components/SellerAIAssistant'
+import IntroAnimation from '@/components/intro/IntroAnimation'
 import { CartProvider } from '@/lib/cart-context'
 import RecaptchaProvider from '@/components/RecaptchaProvider'
 import { ThemeProvider } from '@/lib/theme-context'
@@ -24,12 +27,15 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} bg-gray-50 dark:bg-slate-900 min-h-screen flex flex-col`}>
         <ThemeProvider>
+          <IntroAnimation />
           <RecaptchaProvider>
             <CartProvider>
               <Header />
               <main className="flex-1">{children}</main>
               <Footer />
               <AIAssistant />
+              <ActivityTracker />
+              <SellerAIAssistant />
             </CartProvider>
           </RecaptchaProvider>
         </ThemeProvider>
@@ -37,3 +43,6 @@ export default function RootLayout({
     </html>
   )
 }
+
+
+

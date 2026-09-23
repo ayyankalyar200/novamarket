@@ -1,69 +1,115 @@
-﻿import { NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+﻿import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-    if (!user) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    const { conversation_id, content } = await request.json()
+    const body = await request.json()
+    const { conversation_id, content } = body
 
-    if (!conversation_id || !content?.trim()) {
+    console.log('Send message:', { conversation_id, content, user: user.id })
+
+    if (!conversation_id) {
       return NextResponse.json(
-        { error: "Message required" },
+        { error: 'Conversation ID required' },
         { status: 400 }
       )
     }
 
-    // Verify user is part of conversation
-    const { data: conversation } = await supabase
-      .from("conversations")
-      .select("buyer_id, seller_id")
-      .eq("id", conversation_id)
+    if (!content || !content.trim()) {
+      return NextResponse.json(
+        { error: 'Message content required' },
+        { status: 400 }
+      )
+    }
+
+    // Verify conversation exists and user is part of it
+    const { data: conversation, error: convError } = await supabase
+      .from('conversations')
+      .select('id, buyer_id, seller_id')
+      .eq('id', conversation_id)
       .single()
 
+    if (convError) {
+      console.error('Conversation fetch error:', convError)
+      return NextResponse.json(
+        { error: 'Conversation not found' },
+        { status: 404 }
+      )
+    }
+
     if (!conversation) {
-      return NextResponse.json({ error: "Conversation not found" }, { status: 404 })
+      return NextResponse.json(
+        { error: 'Conversation not found' },
+        { status: 404 }
+      )
     }
 
-    if (
-      conversation.buyer_id !== user.id &&
-      conversation.seller_id !== user.id
-    ) {
-      return NextResponse.json({ error: "Not authorized" }, { status: 403 })
+    // Check authorization
+    const isBuyer = conversation.buyer_id === user.id
+    const isSeller = conversation.seller_id === user.id
+
+    if (!isBuyer && !isSeller) {
+      return NextResponse.json(
+        { error: 'Not authorized to send in this conversation' },
+        { status: 403 }
+      )
     }
 
-    // Create message
-    const { data: message, error } = await supabase
-      .from("messages")
+    // Insert message
+    const { data: message, error: insertError } = await supabase
+      .from('messages')
       .insert({
         conversation_id,
         sender_id: user.id,
         content: content.trim(),
+        is_read: false,
       })
       .select()
       .single()
 
-    if (error) throw error
+    if (insertError) {
+      console.error('Message insert error:', insertError)
+      return NextResponse.json(
+        { error: 'Failed to send: ' + insertError.message },
+        { status: 500 }
+      )
+    }
 
-    // Reset unread count for sender
-    const updateField =
-      conversation.buyer_id === user.id
-        ? "buyer_unread_count"
-        : "seller_unread_count"
+    // Update conversation last message
+    const updateField = isBuyer ? 'seller_unread_count' : 'buyer_unread_count'
 
     await supabase
-      .from("conversations")
-      .update({ [updateField]: 0 })
-      .eq("id", conversation_id)
+      .from('conversations')
+      .update({
+        last_message_at: new Date().toISOString(),
+        last_message_preview: content.trim().slice(0, 100),
+        [updateField]: 1,
+      })
+      .eq('id', conversation_id)
 
-    return NextResponse.json({ success: true, message })
+    // Reset sender's unread count
+    const resetField = isBuyer ? 'buyer_unread_count' : 'seller_unread_count'
+    await supabase
+      .from('conversations')
+      .update({ [resetField]: 0 })
+      .eq('id', conversation_id)
+
+    return NextResponse.json({
+      success: true,
+      message,
+    })
   } catch (error: any) {
-    console.error("Send message error:", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('Send message exception:', error)
+    return NextResponse.json(
+      { error: error.message || 'Server error' },
+      { status: 500 }
+    )
   }
 }

@@ -170,6 +170,17 @@ export default function UserMenu() {
               Messages
             </Link>
 
+            {profile?.role === 'buyer' && (
+              <Link
+                href="/seller-signup"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3 px-4 py-2 hover:bg-green-50 dark:hover:bg-green-900/20 text-sm text-green-700 dark:text-green-400"
+              >
+                <Store className="w-4 h-4" />
+                Become a Seller
+              </Link>
+            )}
+
             <Link
               href="/wishlist"
               onClick={() => setOpen(false)}
@@ -209,4 +220,5 @@ export default function UserMenu() {
     </div>
   )
 }
+
 

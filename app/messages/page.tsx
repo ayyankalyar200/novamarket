@@ -1,6 +1,7 @@
-﻿import Link from "next/link"
+import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
+import UserStatus from "@/components/UserStatus"
 import { MessageCircle, Package } from "lucide-react"
 
 export default async function MessagesPage() {

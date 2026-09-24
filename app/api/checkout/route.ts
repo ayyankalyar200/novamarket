@@ -89,6 +89,7 @@ export async function POST(request: Request) {
         status: "pending",
         stripe_session_id: session.id,
         payment_status: "pending",
+        return_deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       })
       .select()
       .single()
@@ -111,3 +112,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
+

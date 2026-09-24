@@ -7,6 +7,7 @@ import AIAssistant from '@/components/AIAssistant'
 import ActivityTracker from '@/components/ActivityTracker'
 import SellerAIAssistant from '@/components/SellerAIAssistant'
 import IntroAnimation from '@/components/intro/IntroAnimation'
+import MobileSearchButton from '@/components/MobileSearchButton'
 import { CartProvider } from '@/lib/cart-context'
 import RecaptchaProvider from '@/components/RecaptchaProvider'
 import { ThemeProvider } from '@/lib/theme-context'
@@ -34,6 +35,7 @@ export default function RootLayout({
               <main className="flex-1">{children}</main>
               <Footer />
               <AIAssistant />
+              <MobileSearchButton />
               <ActivityTracker />
               <SellerAIAssistant />
             </CartProvider>
@@ -43,6 +45,7 @@ export default function RootLayout({
     </html>
   )
 }
+
 
 
 

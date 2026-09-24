@@ -77,9 +77,12 @@ export default async function MessagesPage() {
                   {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-1">
-                      <p className="font-bold text-gray-900 dark:text-white truncate">
-                        {otherUser?.username || "User"}
-                      </p>
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-bold text-gray-900 dark:text-white truncate">
+                          {otherUser?.username || "User"}
+                        </p>
+                        <UserStatus userId={otherUser?.id || ''} size="sm" />
+                      </div>
                       <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
                         {formatTime(conv.last_message_at)}
                       </span>
@@ -121,3 +124,4 @@ export default async function MessagesPage() {
     </div>
   )
 }
+

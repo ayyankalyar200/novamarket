@@ -6,18 +6,13 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useRecaptcha } from '@/lib/use-recaptcha'
 import {
-  Mail,
-  Lock,
-  User,
-  Loader2,
-  Store,
-  Briefcase,
-  Phone,
-  MapPin,
-  FileText,
-  Check,
-  AlertCircle,
+  Mail, Lock, User, Loader2, Store, Check,
+  AlertCircle, Briefcase, Phone, MapPin, FileText,
 } from 'lucide-react'
+import CountrySelect from '@/components/ui/CountrySelect'
+import PhoneInput from '@/components/ui/PhoneInput'
+import LocationInput from '@/components/ui/LocationInput'
+import { getDefaultCountry, Country } from '@/lib/data/countries'
 
 const CATEGORIES = [
   { value: 'electronics', label: '💻 Electronics & Gadgets' },
@@ -37,14 +32,14 @@ export default function SellerSignupPage() {
   const { getToken } = useRecaptcha()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [step, setStep] = useState(1) // Step 1: Account, Step 2: Store Info
+  const [step, setStep] = useState(1)
 
-  // Account
+  // Step 1: Account
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [username, setUsername] = useState('')
 
-  // Store
+  // Step 2: Store Info
   const [form, setForm] = useState({
     store_name: '',
     store_description: '',
@@ -55,13 +50,19 @@ export default function SellerSignupPage() {
     terms_accepted: false,
   })
 
+  // Phone country + Location
+  const [selectedCountry, setSelectedCountry] = useState<Country>(getDefaultCountry())
+  const [locationValid, setLocationValid] = useState(false)
+
+  // ==========================================
+  // STEP 1: Create Account
+  // ==========================================
   const handleStep1 = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
 
     try {
-      // reCAPTCHA
       const recaptchaToken = await getToken('seller_signup')
       if (recaptchaToken) {
         await fetch('/api/recaptcha/verify', {
@@ -71,7 +72,6 @@ export default function SellerSignupPage() {
         }).catch(() => {})
       }
 
-      // Create account
       const supabase = createClient()
       const { error: signupError } = await supabase.auth.signUp({
         email,
@@ -84,25 +84,36 @@ export default function SellerSignupPage() {
 
       if (signupError) throw signupError
 
-      // Move to step 2
       setStep(2)
-      setLoading(false)
     } catch (err: any) {
       setError(err.message)
+    } finally {
       setLoading(false)
     }
   }
 
+  // ==========================================
+  // STEP 2: Submit Seller Application
+  // ==========================================
   const handleStep2 = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+
+    if (!locationValid) {
+      setError('Please select a valid location from the dropdown')
+      return
+    }
+
     setLoading(true)
 
     try {
       const res = await fetch('/api/become-seller', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          phone: `${selectedCountry.dialCode} ${form.phone}`,
+        }),
       })
 
       const data = await res.json()
@@ -139,14 +150,14 @@ export default function SellerSignupPage() {
               {step === 1 ? 'Create Seller Account' : 'Set Up Your Store'}
             </h1>
             <p className="text-gray-500 dark:text-gray-400">
-              {step === 1 
-                ? 'Become a seller on NovaMarket — no buyer account needed'
+              {step === 1
+                ? 'No buyer account needed — start selling directly'
                 : 'Tell us about your store'}
             </p>
           </div>
         </div>
 
-        {/* Step 1: Account */}
+        {/* STEP 1: Account */}
         {step === 1 && (
           <form onSubmit={handleStep1} className="space-y-4">
             <div>
@@ -218,116 +229,129 @@ export default function SellerSignupPage() {
                 Login
               </Link>
             </p>
-
-            <p className="text-center text-xs text-gray-400">
-              Want to buy instead?{' '}
-              <Link href="/signup" className="text-purple-600 hover:underline">
-                Buyer signup
-              </Link>
-            </p>
           </form>
         )}
 
-        {/* Step 2: Store Info */}
+        {/* STEP 2: Store Info (Advanced) */}
         {step === 2 && (
-          <form onSubmit={handleStep2} className="space-y-4">
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-3 mb-4">
+          <form onSubmit={handleStep2} className="space-y-5">
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-3">
               <p className="text-sm text-green-800 dark:text-green-300 flex items-center gap-2">
                 <Check className="w-4 h-4" />
-                Account created! Complete your store details.
+                Account created! Now set up your store.
               </p>
             </div>
 
+            {/* Store Name */}
             <div>
-              <label className="block text-sm font-medium mb-2 dark:text-white">Store Name *</label>
-              <input
-                type="text"
-                value={form.store_name}
-                onChange={(e) => setForm({ ...form, store_name: e.target.value })}
-                required
-                minLength={3}
-                placeholder="e.g. Your Store Name"
-                className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
+              <label className="block text-sm font-medium mb-2 dark:text-white">
+                Store Name <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <Store className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  value={form.store_name}
+                  onChange={(e) => setForm({ ...form, store_name: e.target.value })}
+                  required
+                  minLength={3}
+                  placeholder="e.g. Your Store Name"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
             </div>
 
+            {/* Description */}
             <div>
-              <label className="block text-sm font-medium mb-2 dark:text-white">Description *</label>
+              <label className="block text-sm font-medium mb-2 dark:text-white">
+                Store Description <span className="text-red-500">*</span>
+              </label>
               <textarea
                 value={form.store_description}
                 onChange={(e) => setForm({ ...form, store_description: e.target.value })}
                 required
                 minLength={20}
                 rows={3}
-                placeholder="Describe your store (20-500 chars)"
-                className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="Tell buyers about your store (20-500 chars)"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                {form.store_description.length} / 500 characters
+              </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium mb-2 dark:text-white">Category *</label>
+            {/* Category */}
+            <div>
+              <label className="block text-sm font-medium mb-2 dark:text-white">
+                Primary Category <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <select
                   value={form.store_category}
                   onChange={(e) => setForm({ ...form, store_category: e.target.value })}
                   required
-                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
-                  <option value="">Select</option>
+                  <option value="">Select category</option>
                   {CATEGORIES.map((c) => (
                     <option key={c.value} value={c.value}>{c.label}</option>
                   ))}
                 </select>
               </div>
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2 dark:text-white">Phone *</label>
+            {/* PHONE with Country Dropdown */}
+            <PhoneInput
+              country={selectedCountry}
+              onCountryChange={setSelectedCountry}
+              phone={form.phone}
+              onPhoneChange={(phone) => setForm({ ...form, phone })}
+              required
+              label="Phone Number"
+            />
+
+            {/* LOCATION with autocomplete */}
+            <LocationInput
+              value={form.address}
+              onChange={(value) => setForm({ ...form, address: value })}
+              onValidSelection={() => setLocationValid(true)}
+              required
+              label="Business Address"
+              placeholder="Start typing your city (e.g. Karachi, Lahore, Dubai)"
+            />
+
+            {/* Tax ID */}
+            <div>
+              <label className="block text-sm font-medium mb-2 dark:text-white">
+                Tax ID / NTN <span className="text-gray-400">(optional)</span>
+              </label>
+              <div className="relative">
+                <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
-                  type="tel"
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  required
-                  minLength={10}
-                  placeholder="+92 300 1234567"
-                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  type="text"
+                  value={form.tax_id}
+                  onChange={(e) => setForm({ ...form, tax_id: e.target.value })}
+                  placeholder="Business tax registration"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2 dark:text-white">Business Address *</label>
-              <textarea
-                value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
-                required
-                minLength={10}
-                rows={2}
-                placeholder="Street, City, Country"
-                className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2 dark:text-white">Tax ID (optional)</label>
-              <input
-                type="text"
-                value={form.tax_id}
-                onChange={(e) => setForm({ ...form, tax_id: e.target.value })}
-                placeholder="Business tax registration"
-                className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-            </div>
-
-            <label className="flex items-start gap-2 cursor-pointer">
+            {/* Terms */}
+            <label className="flex items-start gap-3 cursor-pointer">
               <input
                 type="checkbox"
                 checked={form.terms_accepted}
                 onChange={(e) => setForm({ ...form, terms_accepted: e.target.checked })}
                 required
-                className="mt-1"
+                className="mt-1 w-5 h-5 rounded border-gray-300 text-purple-600"
               />
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                I agree to NovaMarket's Seller Terms (FREE during founding phase — no commission)
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                I agree to NovaMarket's Seller Terms{' '}
+                <span className="font-medium text-green-600">
+                  (FREE during founding phase — no commission)
+                </span>
               </span>
             </label>
 
@@ -339,16 +363,19 @@ export default function SellerSignupPage() {
 
             <button
               type="submit"
-              disabled={loading || !form.terms_accepted}
+              disabled={loading || !form.terms_accepted || !locationValid}
               className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 disabled:opacity-50 font-medium flex items-center justify-center gap-2"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               {loading ? 'Submitting...' : 'Submit Application'}
             </button>
+
+            <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+              After admin approval, you'll be able to start selling
+            </p>
           </form>
         )}
       </div>
     </div>
   )
 }
-

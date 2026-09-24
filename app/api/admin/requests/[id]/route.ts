@@ -2,6 +2,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { getResend, EMAIL_FROM } from "@/lib/email/client"
 import { sellerApprovedEmail, sellerRejectedEmail } from "@/lib/email/templates"
+import { createNotification } from "@/lib/notifications"
 
 export async function POST(
   request: Request,
@@ -30,10 +31,7 @@ export async function POST(
 
     const { data: sellerRequest } = await supabase
       .from("seller_requests")
-      .select(`
-        *,
-        profiles:user_id (id, username)
-      `)
+      .select(`*, profiles:user_id (id, username)`)
       .eq("id", id)
       .single()
 
@@ -48,7 +46,6 @@ export async function POST(
       )
     }
 
-    // Get user email
     const { data: { user: targetUser } } = await supabase.auth.admin.getUserById(
       sellerRequest.user_id
     )
@@ -85,7 +82,16 @@ export async function POST(
         })
         .eq("id", sellerRequest.user_id)
 
-      // Send approval email (optional)
+      // ⚡ CREATE IN-APP NOTIFICATION
+      await createNotification({
+        userId: sellerRequest.user_id,
+        type: 'seller_approved',
+        title: '🎉 Seller Application Approved!',
+        message: `Congratulations ${username}! Your store "${sellerRequest.store_name}" is now approved. Start selling!`,
+        link: '/dashboard/seller',
+      })
+
+      // Send email
       try {
         const resend = getResend()
         if (resend && userEmail) {
@@ -101,12 +107,9 @@ export async function POST(
             subject,
             html,
           })
-          console.log(`✅ Approval email sent to ${userEmail}`)
-        } else {
-          console.log(`📧 Approval email skipped (email disabled or no email)`)
         }
       } catch (emailError) {
-        console.error("❌ Email send failed (non-blocking):", emailError)
+        console.error("Email failed:", emailError)
       }
 
       return NextResponse.json({ success: true, action: "approved" })
@@ -126,7 +129,18 @@ export async function POST(
         })
         .eq("id", id)
 
-      // Send rejection email (optional)
+      // ⚡ CREATE IN-APP NOTIFICATION
+      await createNotification({
+        userId: sellerRequest.user_id,
+        type: 'seller_rejected',
+        title: 'Seller Application Update',
+        message: reason
+          ? `Your application was not approved. Reason: ${reason}`
+          : 'Your seller application was not approved at this time.',
+        link: '/become-seller',
+      })
+
+      // Send email
       try {
         const resend = getResend()
         if (resend && userEmail) {
@@ -142,12 +156,9 @@ export async function POST(
             subject,
             html,
           })
-          console.log(`✅ Rejection email sent to ${userEmail}`)
-        } else {
-          console.log(`📧 Rejection email skipped`)
         }
       } catch (emailError) {
-        console.error("❌ Email send failed (non-blocking):", emailError)
+        console.error("Email failed:", emailError)
       }
 
       return NextResponse.json({ success: true, action: "rejected" })

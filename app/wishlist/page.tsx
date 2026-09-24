@@ -9,37 +9,49 @@ export default async function WishlistPage() {
 
   if (!user) redirect('/login')
 
-  const { data: wishlistItems } = await supabase
+  // Get wishlist items with products
+  const { data: wishlistItems, error } = await supabase
     .from('wishlists')
     .select(`
       id,
       created_at,
-      products (
-        id,
-        title,
-        price,
-        images,
-        stock,
-        status,
-        profiles (username)
-      )
+      product_id
     `)
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
-  // Filter active products
-  const items = wishlistItems?.filter(
-    (item: any) => item.products?.status === 'active'
-  ) || []
+  if (error) {
+    console.error('Wishlist fetch error:', error)
+  }
+
+  // Get products separately
+  const productIds = wishlistItems?.map((w: any) => w.product_id) || []
+
+  let products: any[] = []
+  if (productIds.length > 0) {
+    const { data: prods } = await supabase
+      .from('products')
+      .select('*')
+      .in('id', productIds)
+    products = prods || []
+  }
+
+  // Merge
+  const items = wishlistItems
+    ?.map((w: any) => {
+      const product = products.find((p: any) => p.id === w.product_id)
+      return product ? { ...w, products: product } : null
+    })
+    .filter(Boolean) || []
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2 text-gray-900 flex items-center gap-3">
+        <h1 className="text-3xl font-bold mb-2 text-gray-900 dark:text-white flex items-center gap-3">
           <Heart className="w-8 h-8 text-red-500 fill-current" />
           My Wishlist
         </h1>
-        <p className="text-gray-500">
+        <p className="text-gray-500 dark:text-gray-400">
           {items.length} item{items.length !== 1 ? 's' : ''} saved
         </p>
       </div>
@@ -50,9 +62,9 @@ export default async function WishlistPage() {
             <Link
               key={item.id}
               href={`/product/${item.products.id}`}
-              className="bg-white rounded-lg border overflow-hidden hover:shadow-lg transition group"
+              className="bg-white dark:bg-slate-800 rounded-lg border dark:border-slate-700 overflow-hidden hover:shadow-lg transition group"
             >
-              <div className="aspect-square bg-gray-100 overflow-hidden">
+              <div className="aspect-square bg-gray-100 dark:bg-slate-700 overflow-hidden">
                 {item.products.images?.[0] ? (
                   <img
                     src={item.products.images[0]}
@@ -66,14 +78,11 @@ export default async function WishlistPage() {
                 )}
               </div>
               <div className="p-3">
-                <h3 className="font-medium text-sm line-clamp-2 mb-1 min-h-[2.5rem]">
+                <h3 className="font-medium text-sm line-clamp-2 mb-1 min-h-[2.5rem] dark:text-white">
                   {item.products.title}
                 </h3>
                 <p className="text-purple-600 font-bold text-lg">
                   ${item.products.price}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  by {item.products.profiles?.username || 'Seller'}
                 </p>
                 {item.products.stock > 0 ? (
                   <p className="text-xs text-green-600 mt-1 font-medium">
@@ -89,10 +98,12 @@ export default async function WishlistPage() {
           ))}
         </div>
       ) : (
-        <div className="text-center py-20 bg-white rounded-lg border-2 border-dashed">
-          <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-700 mb-2">Your wishlist is empty</h2>
-          <p className="text-gray-500 mb-6">
+        <div className="text-center py-20 bg-white dark:bg-slate-800 rounded-lg border-2 border-dashed dark:border-slate-700">
+          <Heart className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-700 dark:text-gray-300 mb-2">
+            Your wishlist is empty
+          </h2>
+          <p className="text-gray-500 dark:text-gray-400 mb-6">
             Save products you love to view them later
           </p>
           <Link

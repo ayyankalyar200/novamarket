@@ -132,7 +132,7 @@ export default async function ProductPage({
         )}
       </nav>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 mb-12">
         {/* Images */}
         <div>
           <div className="aspect-square bg-white dark:bg-slate-800 rounded-lg border dark:border-slate-700 overflow-hidden mb-4">
@@ -226,7 +226,11 @@ export default async function ProductPage({
             </div>
             <div className="flex items-center gap-3 text-sm dark:text-gray-300">
               <Package className="w-5 h-5 text-purple-600" />
-              <span>30-day return policy</span>
+              <span>
+                {product.return_days === 0
+                  ? 'Final sale — no returns'
+                  : `Return within ${product.return_days} days`}
+              </span>
             </div>
           </div>
 
@@ -356,3 +360,7 @@ export default async function ProductPage({
     </div>
   )
 }
+
+
+
+

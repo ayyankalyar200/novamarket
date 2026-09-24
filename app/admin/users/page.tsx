@@ -2,6 +2,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { Users, Shield, Store, User as UserIcon, Ban, Eye } from "lucide-react"
 import UserActions from "@/components/admin/UserActions"
+import UserStatus from '@/components/UserStatus'
 
 export default async function AdminUsersPage() {
   const supabase = await createClient()
@@ -144,17 +145,16 @@ export default async function AdminUsersPage() {
                     </span>
                   </td>
                   <td className="py-3 px-4">
-                    {u.is_banned ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-2.5 py-1 rounded-full">
-                        <Ban className="w-3 h-3" />
-                        Banned
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2.5 py-1 rounded-full">
-                        <span className="w-1.5 h-1.5 bg-green-600 rounded-full"></span>
-                        Active
-                      </span>
-                    )}
+                    <div className="flex flex-col gap-1">
+                      {u.is_banned ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-2.5 py-1 rounded-full w-fit">
+                          <Ban className="w-3 h-3" />
+                          Banned
+                        </span>
+                      ) : (
+                        <UserStatus userId={u.id} size="sm" />
+                      )}
+                    </div>
                   </td>
                   <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400">
                     {timeAgo(u.last_login_at)}
@@ -188,3 +188,4 @@ export default async function AdminUsersPage() {
     </div>
   )
 }
+

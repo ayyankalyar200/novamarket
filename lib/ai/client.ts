@@ -382,3 +382,96 @@ Return ONLY the JSON array:`
 
 
 
+
+// ============================================
+// 📷 IMAGE SEARCH (Gemini Vision)
+// ============================================
+
+export async function analyzeImageForSearch(
+  imageBase64: string,
+  mimeType: string,
+  products: any[]
+): Promise<{ keywords: string[]; bestMatches: any[] }> {
+  const geminiKeys = getGeminiKeys()
+  
+  if (geminiKeys.length === 0) {
+    throw new Error('No Gemini API key available for image search')
+  }
+
+  const productList = products
+    .slice(0, 30)
+    .map((p, i) => `${i + 1}. ${p.title} - $${p.price} - ${p.description?.slice(0, 60) || ''}`)
+    .join('\n')
+
+  const prompt = `You are an AI product search assistant. Analyze this image and identify what product it shows.
+
+Then, from the available products list below, find the BEST matching products.
+
+Available products:
+${productList}
+
+Return ONLY a JSON object in this exact format:
+{
+  "keywords": ["keyword1", "keyword2", "keyword3"],
+  "matches": [3, 7, 1]
+}
+
+Where "keywords" are the main features you identified (color, type, brand, etc.) in max 5 words, and "matches" is an array of product indexes (1-based) sorted by relevance. Return max 8 products. If no good match, return closest alternatives.
+
+Return ONLY the JSON, no other text.`
+
+  const errors: string[] = []
+
+  for (let i = 0; i < geminiKeys.length; i++) {
+    const idx = (geminiKeyIndex + i) % geminiKeys.length
+    const key = geminiKeys[idx]
+
+    try {
+      const genAI = new GoogleGenerativeAI(key)
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-3.5-flash',
+        generationConfig: {
+          maxOutputTokens: 500,
+          temperature: 0.3,
+        },
+      })
+
+      const result = await model.generateContent([
+        prompt,
+        {
+          inlineData: {
+            data: imageBase64,
+            mimeType,
+          },
+        },
+      ])
+
+      const text = result.response.text()
+      
+      // Parse JSON from response
+      const jsonMatch = text.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) {
+        throw new Error('Failed to parse AI response')
+      }
+
+      const parsed = JSON.parse(jsonMatch[0])
+      const keywords = parsed.keywords || []
+      const matches = parsed.matches || []
+
+      const bestMatches = matches
+        .filter((i: number) => i >= 1 && i <= products.length)
+        .map((i: number) => products[i - 1])
+        .filter(Boolean)
+
+      // Rotate to next key
+      geminiKeyIndex = (idx + 1) % geminiKeys.length
+
+      return { keywords, bestMatches }
+    } catch (err: any) {
+      errors.push(`Gemini #${idx + 1}: ${err.message?.slice(0, 100)}`)
+      console.warn(`Gemini key ${idx + 1} failed for image search`)
+    }
+  }
+
+  throw new Error(`All AI providers failed for image search:\n${errors.join('\n')}`)
+}

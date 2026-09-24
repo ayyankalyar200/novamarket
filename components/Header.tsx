@@ -1,10 +1,11 @@
 ﻿'use client'
 
 import Link from 'next/link'
-import { Search, ShoppingCart, Shield, Store, Sparkles } from 'lucide-react'
+import { Search, ShoppingCart, Shield, Store, Sparkles, Camera } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import UserMenu from './UserMenu'
+import ImageSearchModal from './search/ImageSearchModal'
 import ThemeToggle from './ThemeToggle'
 import NotificationBell from './notifications/NotificationBell'
 import { useCart } from '@/lib/cart-context'
@@ -13,6 +14,7 @@ import { createClient } from '@/lib/supabase/client'
 export default function Header() {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
+  const [imageSearchOpen, setImageSearchOpen] = useState(false)
   const { totalItems } = useCart()
   const [userRole, setUserRole] = useState<string | null>(null)
 
@@ -75,6 +77,15 @@ export default function Header() {
           <form onSubmit={handleSearch} className="flex-1 max-w-2xl">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              
+              <button
+                type="button"
+                onClick={() => setImageSearchOpen(true)}
+                className="absolute right-10 top-1/2 -translate-y-1/2 p-1.5 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-md transition"
+                title="Search with Image"
+              >
+                <Camera className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              </button>
               <button
                 type="button"
                 onClick={() => router.push('/ai-search')}
@@ -88,7 +99,7 @@ export default function Header() {
                 placeholder="Search products, brands, and categories..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-12 py-2 border border-gray-300 dark:border-slate-600 rounded-lg dark:bg-slate-700 dark:text-white"
+                className="w-full pl-10 pr-16 py-2 border border-gray-300 dark:border-slate-600 rounded-lg dark:bg-slate-700 dark:text-white"
               />
             </div>
           </form>
@@ -172,9 +183,13 @@ export default function Header() {
           </nav>
         </div>
       </div>
+    
+      <ImageSearchModal isOpen={imageSearchOpen} onClose={() => setImageSearchOpen(false)} />
     </header>
   )
 }
+
+
 
 
 

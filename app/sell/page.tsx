@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Loader2, Upload, Store } from 'lucide-react'
+import { Loader2, Upload, Store, Package, RotateCcw } from 'lucide-react'
 import Link from 'next/link'
 
 export default function SellPage() {
@@ -22,6 +22,7 @@ export default function SellPage() {
     stock: '1',
     category_id: '',
     condition: 'new',
+    return_days: '7',
   })
 
   const [imageFiles, setImageFiles] = useState<File[]>([])
@@ -106,6 +107,7 @@ export default function SellPage() {
           stock: parseInt(form.stock),
           category_id: form.category_id ? parseInt(form.category_id) : null,
           condition: form.condition,
+          return_days: parseInt(form.return_days),
           images: uploadedUrls,
           status: 'active',
         })
@@ -217,6 +219,56 @@ export default function SellPage() {
           </div>
         </div>
 
+        
+        {/* Return Policy */}
+        <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-700 rounded-xl p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Package className="w-5 h-5 text-blue-600" />
+            <h3 className="font-bold text-gray-900 dark:text-white">
+              Return Policy *
+            </h3>
+          </div>
+          <p className="text-xs text-gray-600 dark:text-gray-400 mb-4">
+            Decide how many days buyers can return this product. This will be shown on your product page.
+          </p>
+
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-3">
+            {[
+              { value: '0', label: 'No Returns', desc: 'Final sale' },
+              { value: '3', label: '3 Days', desc: 'Short window' },
+              { value: '7', label: '7 Days', desc: 'Recommended' },
+              { value: '14', label: '14 Days', desc: 'Standard' },
+              { value: '30', label: '30 Days', desc: 'Generous' },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setForm({ ...form, return_days: option.value })}
+                className={`p-3 rounded-lg border-2 transition text-left ${
+                  form.return_days === option.value
+                    ? 'border-blue-600 bg-white dark:bg-slate-800'
+                    : 'border-gray-200 dark:border-slate-600 hover:border-gray-300 bg-white dark:bg-slate-800'
+                }`}
+              >
+                <p className="font-bold text-xs dark:text-white">{option.label}</p>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                  {option.desc}
+                </p>
+              </button>
+            ))}
+          </div>
+
+          {form.return_days === '0' ? (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-2 text-xs text-red-700 dark:text-red-400">
+              ⚠️ Buyers will see: "This is a final sale. No returns accepted."
+            </div>
+          ) : (
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-2 text-xs text-green-700 dark:text-green-400">
+              ✅ Buyers will see: "Return accepted within {form.return_days} days of delivery."
+            </div>
+          )}
+        </div>
+
         <div>
           <label className="block text-sm font-medium mb-2 text-gray-900">Product Images</label>
           <input
@@ -271,3 +323,5 @@ export default function SellPage() {
     </div>
   )
 }
+
+

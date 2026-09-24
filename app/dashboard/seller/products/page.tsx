@@ -98,6 +98,19 @@ export default async function SellerProductsPage() {
                     Stock: {product.stock}
                   </span>
                 </div>
+                {/* Return Policy Badge */}
+                <div className="mt-2 flex items-center gap-1 text-xs">
+                  {product.return_days === 0 ? (
+                    <span className="text-red-600 dark:text-red-400 font-medium">
+                      🚫 No returns
+                    </span>
+                  ) : (
+                    <span className="text-green-600 dark:text-green-400 font-medium">
+                      ↩️ {product.return_days}-day returns
+                    </span>
+                  )}
+                </div>
+                
                 <div className="mt-2">
                   <span
                     className={`px-2 py-0.5 rounded-full text-xs ${
@@ -129,4 +142,5 @@ export default async function SellerProductsPage() {
     </div>
   )
 }
+
 

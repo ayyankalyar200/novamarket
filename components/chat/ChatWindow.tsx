@@ -20,8 +20,11 @@ type Props = {
     id: string
     username: string
     avatar_url?: string
+    is_online?: boolean
+    last_active?: string
   }
   initialMessages: Message[]
+  initialOtherLastActive?: string
 }
 
 export default function ChatWindow({
@@ -29,24 +32,44 @@ export default function ChatWindow({
   currentUserId,
   otherUser,
   initialMessages,
+  initialOtherLastActive,
 }: Props) {
   const router = useRouter()
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [newMessage, setNewMessage] = useState('')
   const [sending, setSending] = useState(false)
+  const [otherOnline, setOtherOnline] = useState(false)
+  const [otherLastActive, setOtherLastActive] = useState(initialOtherLastActive || '')
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const supabaseRef = useRef<any>(null)
 
-  // Scroll to bottom on load and new messages
+  // Initialize Supabase once
   useEffect(() => {
+    supabaseRef.current = createClient()
+  }, [])
+
+  // Scroll to bottom
+  const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
   }, [messages])
 
-  // Realtime subscription
+  // ⚡ REALTIME SUBSCRIPTION — FAST
   useEffect(() => {
-    const supabase = createClient()
+    if (!supabaseRef.current) return
 
+    const supabase = supabaseRef.current
+
+    // Subscribe to new messages
     const channel = supabase
-      .channel(`conversation-${conversationId}`)
+      .channel(`chat-${conversationId}`, {
+        config: {
+          broadcast: { self: true },
+        },
+      })
       .on(
         'postgres_changes',
         {
@@ -55,20 +78,66 @@ export default function ChatWindow({
           table: 'messages',
           filter: `conversation_id=eq.${conversationId}`,
         },
-        (payload) => {
+        (payload: any) => {
+          console.log('⚡ New message:', payload.new)
+          const newMsg = payload.new as Message
           setMessages((prev) => {
             // Avoid duplicates
-            if (prev.find((m) => m.id === payload.new.id)) return prev
-            return [...prev, payload.new as Message]
+            if (prev.some((m) => m.id === newMsg.id)) return prev
+            return [...prev, newMsg]
           })
         }
       )
-      .subscribe()
+      .subscribe((status: string) => {
+        console.log('📡 Chat subscription:', status)
+      })
 
     return () => {
       supabase.removeChannel(channel)
     }
   }, [conversationId])
+
+  // ⚡ Track user activity (send heartbeat)
+  useEffect(() => {
+    if (!supabaseRef.current || !currentUserId) return
+    const supabase = supabaseRef.current
+
+    const updateActivity = async () => {
+      await supabase
+        .from('profiles')
+        .update({ last_active_at: new Date().toISOString() })
+        .eq('id', currentUserId)
+    }
+
+    updateActivity()
+    const interval = setInterval(updateActivity, 30000) // Every 30 sec
+    return () => clearInterval(interval)
+  }, [currentUserId])
+
+  // ⚡ Check other user's online status
+  useEffect(() => {
+    if (!supabaseRef.current || !otherUser.id) return
+    const supabase = supabaseRef.current
+
+    const checkOnline = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('last_active_at')
+        .eq('id', otherUser.id)
+        .single()
+
+      if (data?.last_active_at) {
+        const diff = Date.now() - new Date(data.last_active_at).getTime()
+        const isOnline = diff < 2 * 60 * 1000 // 2 minutes
+        setOtherOnline(isOnline)
+        setOtherLastActive(data.last_active_at)
+      }
+    }
+
+    checkOnline()
+    const interval = setInterval(checkOnline, 20000) // Every 20 sec
+    return () => clearInterval(interval)
+  }, [otherUser.id])
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -77,6 +146,16 @@ export default function ChatWindow({
     setSending(true)
     const content = newMessage.trim()
     setNewMessage('')
+
+    // ⚡ Optimistic update — show immediately
+    const tempId = `temp-${Date.now()}`
+    const optimisticMsg: Message = {
+      id: tempId,
+      sender_id: currentUserId,
+      content,
+      created_at: new Date().toISOString(),
+    }
+    setMessages((prev) => [...prev, optimisticMsg])
 
     try {
       const res = await fetch('/api/messages/send', {
@@ -88,13 +167,20 @@ export default function ChatWindow({
         }),
       })
 
-      if (!res.ok) {
-        throw new Error('Failed to send')
-      }
+      const data = await res.json()
 
-      // Message will arrive via realtime subscription
-    } catch (err) {
-      alert('Failed to send message')
+      if (!res.ok) throw new Error(data.error)
+
+      // Replace optimistic with real
+      if (data.message) {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? data.message : m))
+        )
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to send')
+      // Remove optimistic message on error
+      setMessages((prev) => prev.filter((m) => m.id !== tempId))
       setNewMessage(content)
     } finally {
       setSending(false)
@@ -107,12 +193,10 @@ export default function ChatWindow({
     const diff = now.getTime() - d.getTime()
     const mins = Math.floor(diff / 60000)
     const hours = Math.floor(diff / 3600000)
-    const days = Math.floor(diff / 86400000)
 
     if (mins < 1) return 'Just now'
     if (mins < 60) return `${mins}m ago`
     if (hours < 24) return `${hours}h ago`
-    if (days < 7) return `${days}d ago`
     return d.toLocaleDateString()
   }
 
@@ -126,13 +210,18 @@ export default function ChatWindow({
         >
           <ArrowLeft className="w-5 h-5 dark:text-white" />
         </Link>
-        <div className="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold">
-          {otherUser.username[0].toUpperCase()}
+        <div className="relative">
+          <div className="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold">
+            {otherUser.username[0].toUpperCase()}
+          </div>
+          {otherOnline && (
+            <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-slate-800" />
+          )}
         </div>
         <div>
           <p className="font-bold dark:text-white">{otherUser.username}</p>
-          <p className="text-xs text-green-600 dark:text-green-400">
-            ● Online
+          <p className={`text-xs ${otherOnline ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+            {otherOnline ? '● Online' : otherLastActive ? `Last seen ${formatTime(otherLastActive)}` : 'Offline'}
           </p>
         </div>
       </div>
@@ -146,6 +235,7 @@ export default function ChatWindow({
         ) : (
           messages.map((msg) => {
             const isMine = msg.sender_id === currentUserId
+            const isTemp = msg.id.startsWith('temp-')
             return (
               <div
                 key={msg.id}
@@ -154,7 +244,7 @@ export default function ChatWindow({
                 <div
                   className={`max-w-[70%] rounded-2xl px-4 py-2 ${
                     isMine
-                      ? 'bg-purple-600 text-white rounded-br-sm'
+                      ? `bg-purple-600 text-white rounded-br-sm ${isTemp ? 'opacity-70' : ''}`
                       : 'bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-white rounded-bl-sm'
                   }`}
                 >
@@ -168,7 +258,7 @@ export default function ChatWindow({
                         : 'text-gray-500 dark:text-gray-400'
                     }`}
                   >
-                    {formatTime(msg.created_at)}
+                    {isTemp ? 'Sending...' : formatTime(msg.created_at)}
                   </p>
                 </div>
               </div>

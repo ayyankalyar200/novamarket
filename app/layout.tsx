@@ -17,6 +17,11 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'NovaMarket — Buy & Sell Anything',
   description: 'The smarter marketplace with AI-powered search',
+  icons: {
+    icon: '/icon.jpg',
+    shortcut: '/icon.jpg',
+    apple: '/icon.jpg',
+  },
 }
 
 export default function RootLayout({
@@ -45,7 +50,3 @@ export default function RootLayout({
     </html>
   )
 }
-
-
-
-
